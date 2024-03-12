@@ -85,9 +85,10 @@ export default class FilesController {
         .filesCollection()
         .insertOne({ localPath, ...fileDocument });
 
-      return res
-        .status(201)
-        .json({ id: newFile.insertedId, localPath, ...fileDocument });
+      const responseObject = { id: newFile.insertedId, ...fileDocument };
+      delete responseObject.localPath;
+
+      return res.status(201).json(responseObject);
     } catch (error) {
       console.error('Error uploading file:', error);
       return res.status(500).json({ error: 'Internal Server Error' });

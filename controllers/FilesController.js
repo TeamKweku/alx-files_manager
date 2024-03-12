@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
+import fileQueue from '../worker';
 
 export default class FilesController {
   static async postUpload(req, res) {
@@ -67,6 +68,7 @@ export default class FilesController {
           isPublic: isPublic || false,
           parentId,
         });
+        fileDocument.parentId = parentId === '0' ? 0 : ObjectId(parentId);
         return res
           .status(201)
           .json({ id: newFolder.insertedId, ...fileDocument });
@@ -85,6 +87,12 @@ export default class FilesController {
       const newFile = await dbClient
         .filesCollection()
         .insertOne({ localPath, ...fileDocument });
+
+      if (type === 'image') {
+        fileQueue.add({ fileId: newFile.insertedId, userId });
+      }
+
+      fileDocument.parentId = parentId === '0' ? 0 : ObjectId(parentId);
 
       const responseObject = { id: newFile.insertedId, ...fileDocument };
       delete responseObject.localPath;

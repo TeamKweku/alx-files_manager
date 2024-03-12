@@ -45,6 +45,7 @@ export default class UsersController {
     const ObjId = new ObjectId(userId);
 
     const user = await userCollection.findOne({ _id: ObjId });
+    if (!user) return res.status(404).json({ error: 'User not found' });
     if (user) return res.status(200).json({ id: userId, email: user.email });
     return res.status(401).json({ error: 'Unauthorized' });
   }

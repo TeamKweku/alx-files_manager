@@ -94,4 +94,56 @@ export default class FilesController {
       return res.status(500).json({ error: 'Internal Server Error' });
     }
   }
+
+  static async getShow(req, res) {
+    const token = req.header('X-Token');
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+    const userId = await redisClient.get(`auth_${token}`);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const fileId = req.params.id;
+    const file = await dbClient
+      .filesCollection('files')
+      .findOne({ _id: ObjectId(fileId), userId });
+
+    if (!file) return res.status(404).json({ error: 'Not found' });
+
+    return res.json(file);
+  }
+
+  static async getIndex(req, res) {
+    const token = req.header('X-Token');
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+    const userId = await redisClient.get(`auth_${token}`);
+
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const parentId = req.query.parentId || '0';
+
+    const filesCount = await dbClient
+      .filesCollection('files')
+      .countDocuments({ userId, parentId });
+
+    if (filesCount === 0) return res.json([]);
+
+    const skip = (parseInt(req.query.page, 10) || 0) * 20;
+    const files = await dbClient
+      .filesCollection('files')
+      .aggregate([
+        { $match: { userId, parentId } },
+        { $skip: skip },
+        { $limit: 20 },
+      ])
+      .toArray();
+
+    const modifyResult = files.map((file) => ({
+      ...file,
+      id: file._id,
+      _id: undefined,
+    }));
+
+    return res.json(modifyResult);
+  }
 }
